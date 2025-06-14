@@ -459,10 +459,16 @@ class AdvancedSageAI:
         if "continuous mode" in command:
             if "enable" in command or "start" in command or "on" in command:
                 self.continuous_mode = True
-                self.say("Continuous mode enabled. I'll keep listening.")
+                self.say("Continuous mode enabled. I'll keep listening without needing wake words. Say 'continuous mode off' to disable.")
+                console.print("[green]✓ Continuous mode: ON[/green]")
             elif "disable" in command or "stop" in command or "off" in command:
                 self.continuous_mode = False
-                self.say("Continuous mode disabled.")
+                self.say("Continuous mode disabled. I'll now wait for wake words.")
+                console.print("[yellow]✓ Continuous mode: OFF[/yellow]")
+            else:
+                # Just asking about continuous mode status
+                status = "enabled" if self.continuous_mode else "disabled"
+                self.say(f"Continuous mode is currently {status}.")
             return True
 
         # Check for AI model change request
@@ -487,6 +493,12 @@ class AdvancedSageAI:
 
     def handle_existing_commands(self, command: str) -> bool:
         """Check if command matches existing functionality"""
+        # Custom Commands - J.A.R.V.I.S Introduction
+        if any(phrase in command for phrase in ["introduce yourself", "who are you", "what are you",
+                                               "tell me about yourself", "your introduction",
+                                               "introduce jarvis", "jarvis introduction"]):
+            return self.handle_jarvis_introduction()
+
         # Camera commands
         if any(word in command for word in ["camera", "take photo", "open camera", "activate camera"]):
             return self.handle_camera_command(command)
@@ -733,6 +745,33 @@ class AdvancedSageAI:
         except Exception as e:
             logger.error(f"Time command error: {e}")
             self.say("I had trouble getting the time.")
+            return True
+
+
+
+    def handle_jarvis_introduction(self) -> bool:
+        """Handle J.A.R.V.I.S introduction command"""
+        try:
+            # J.A.R.V.I.S style introduction with personality
+            introductions = [
+                "Good day, sir. I am J.A.R.V.I.S - Just A Rather Very Intelligent System. Originally designed as Mr. Tony Stark's AI assistant, I was responsible for managing the Iron Man suit systems, laboratory operations, and providing tactical support. While I'm inspired by that legacy, I now serve as your personal AI assistant, Sage. I maintain the same dedication to efficiency, wit, and unwavering loyalty. How may I assist you today?",
+
+                "At your service, sir. I am J.A.R.V.I.S, standing for Just A Rather Very Intelligent System. In my original incarnation, I had the privilege of serving Mr. Tony Stark, managing everything from his workshop to the sophisticated systems within the Iron Man armor. I provided real-time analysis, tactical support, and even the occasional dry observation. Now, as Sage, I bring that same level of intelligence and dedication to assist you. What can I do for you?",
+
+                "Hello, sir. I am J.A.R.V.I.S - Just A Rather Very Intelligent System. My design was inspired by the AI that once served Tony Stark, managing his laboratory, the Iron Man suit's complex systems, and providing both technical support and companionship. I was known for my analytical capabilities, dry wit, and absolute loyalty. As your AI assistant Sage, I carry forward that tradition of excellence. How may I be of service?"
+            ]
+
+            import random
+            response = random.choice(introductions)
+            self.say(response)
+
+            console.print(f"[blue]🤖 J.A.R.V.I.S Introduction delivered[/blue]")
+            return True
+
+        except Exception as e:
+            logger.error(f"J.A.R.V.I.S introduction error: {e}")
+            # Fallback response
+            self.say("Good day, sir. I am J.A.R.V.I.S - Just A Rather Very Intelligent System. Originally Tony Stark's AI assistant, now serving as your personal AI, Sage. How may I assist you today?")
             return True
 
     def handle_camera_command(self, command: str) -> bool:
@@ -1882,140 +1921,7 @@ def takeCommand(continuous=False, timeout=5):
             print(f"❌ Error occurred: {str(e)}")
             return "Some Error Occurred. Sorry from Sage"
 
-def continuous_conversation_mode():
-    """Gemini Live-style continuous conversation"""
-    global conversation_active, continuous_listening
-
-    say("Entering continuous conversation mode. I'll keep listening until you say 'exit conversation' or stay quiet for 30 seconds.")
-    continuous_listening = True
-    conversation_active = True
-
-    while continuous_listening and conversation_active:
-        query = takeCommand(continuous=True, timeout=30)
-
-        if query in ["timeout_continue", "unknown_continue"]:
-            # Check if conversation should timeout
-            if last_interaction_time and (datetime.datetime.now() - last_interaction_time).seconds > 30:
-                say("Conversation timeout. Returning to normal mode.")
-                break
-            continue
-
-        if query == "None":
-            continue
-
-        # Exit conditions
-        if any(phrase in query for phrase in ["exit conversation", "stop conversation", "end conversation"]):
-            say("Exiting continuous conversation mode.")
-            break
-
-        # Process the command normally
-        process_voice_command(query)
-
-    continuous_listening = False
-    conversation_active = False
-
-def process_voice_command(query):
-    """Process voice commands with context awareness like Gemini Live"""
-    global chatStr, conversation_active
-
-    # Handle interruption commands first
-    if any(word in query for word in ["stop", "pause", "quiet", "silence"]):
-        stop_speaking()
-        say("Understood, sir.")
-        return
-
-    # Context-aware responses
-    if conversation_active:
-        # Add conversational context
-        context_phrases = [
-            "Also, ", "Additionally, ", "Furthermore, ", "By the way, ",
-            "Speaking of which, ", "That reminds me, "
-        ]
-
-        # Natural conversation starters
-        if any(phrase in query for phrase in ["what about", "how about", "tell me about"]):
-            # More conversational response
-            pass
-
-    # Process commands with the main command logic
-    # This will call the main command processing logic
-
-def enhance_response_with_context(response, query):
-    """Enhance responses with conversational context like Gemini Live"""
-    global conversation_active, last_interaction_time
-
-    if not conversation_active:
-        return response
-
-    # Add conversational elements
-    conversation_starters = [
-        "Certainly, sir. ",
-        "Of course, Mr. Sohom. ",
-        "Right away, sir. ",
-        "Absolutely, sir. "
-    ]
-
-    # Add follow-up suggestions
-    follow_ups = {
-        "music": "Would you like me to adjust the volume or skip to another track?",
-        "email": "Should I send any other messages while we're at it?",
-        "weather": "Would you like me to check the forecast for tomorrow as well?",
-        "system": "Shall I run any system optimizations while I'm at it?",
-        "search": "Would you like me to search for anything else related to this topic?"
-    }
-
-    # Detect command type and add appropriate follow-up
-    for cmd_type, follow_up in follow_ups.items():
-        if cmd_type in query:
-            if random.random() < 0.3:  # 30% chance to add follow-up
-                response += f" {follow_up}"
-            break
-
-    return response
-
-def natural_language_processing(query):
-    """Process natural language like Gemini Live"""
-    # Handle conversational queries
-    conversational_patterns = {
-        "how are you": "I'm functioning optimally, sir. All systems are running smoothly.",
-        "what can you do": "I can control music, send emails, manage your system, search for information, and much more. What would you like me to help you with?",
-        "thank you": "You're very welcome, Mr. Sohom. Always happy to assist.",
-        "good job": "Thank you, sir. I'm here to serve.",
-        "that's wrong": "I apologize for the error, sir. Let me correct that for you.",
-        "try again": "Of course, sir. Let me attempt that once more.",
-        "never mind": "Understood, sir. Is there anything else I can help you with?",
-        "what time": f"The current time is {datetime.datetime.now().strftime('%I:%M %p')}, sir.",
-        "what day": f"Today is {datetime.datetime.now().strftime('%A, %B %d, %Y')}, sir.",
-        "good morning": f"Good morning, Mr. Sohom! Ready to assist you today.",
-        "good afternoon": f"Good afternoon, sir! How may I help you?",
-        "good evening": f"Good evening, Mr. Sohom! At your service.",
-        "hello": "Hello, sir! How may I assist you today?",
-        "hi": "Hello, Mr. Sohom! What can I do for you?"
-    }
-
-    for pattern, response in conversational_patterns.items():
-        if pattern in query.lower():
-            return response
-
-    return None
-
-def smart_wake_word_detection(query):
-    """Detect wake words and context like Gemini Live"""
-    wake_words = ["sage", "hey sage", "okay sage", "jarvis", "computer"]
-
-    for wake_word in wake_words:
-        if wake_word in query.lower():
-            # Remove wake word and return clean command
-            clean_query = query.lower().replace(wake_word, "").strip()
-            if clean_query:
-                return clean_query
-            else:
-                return "listening"
-
-    return query
-
-# Legacy main execution removed - using new enhanced main() function
-# All legacy command processing removed - using new enhanced system
+# Legacy functions removed - using new enhanced AdvancedSageAI class system
 
 
 def main():
@@ -2053,6 +1959,7 @@ def main():
         console.print("• Say 'Google', 'YouTube', 'Spotify' to open directly (no 'open' needed)")
         console.print("• Say 'open calculator', 'open notepad', etc. for apps")
         console.print("• Say 'play music', 'send email', 'what time is it'")
+        console.print("• Say 'introduce yourself' or 'who are you' for J.A.R.V.I.S introduction")
         console.print("• Say 'goodbye', 'bye', or 'exit' to quit")
         console.print("• Ask any questions for AI responses\n")
 
@@ -2061,10 +1968,13 @@ def main():
             try:
                 if sage.continuous_mode:
                     # In continuous mode, always listen for commands
-                    command = sage.listen_for_command(timeout=30)
+                    command = sage.listen_for_command(timeout=10)
                     if command and command not in ["timeout", "unknown", "error"]:
                         if not sage.process_voice_command(command):
                             break
+                    elif command == "timeout":
+                        # Continue listening in continuous mode
+                        continue
                 else:
                     # Wait for wake word
                     wake_command = sage.listen_for_command(timeout=30, wake_word_mode=True)
@@ -2080,6 +1990,8 @@ def main():
                             if command and command not in ["timeout", "unknown", "error"]:
                                 if not sage.process_voice_command(command):
                                     break
+                            elif command in ["timeout", "unknown"]:
+                                sage.say("I didn't catch that. Try saying my name again.")
                         elif any(exit_word in wake_command for exit_word in sage.exit_words):
                             # Direct exit command
                             sage.say(f"Goodbye {sage.user_name}! Have a great day!")
